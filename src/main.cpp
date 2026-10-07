@@ -393,6 +393,7 @@ int main_r(int argc, const char * argv[]) {
         client.setIPSWPath(ipsw);
         devVals.deviceModel = (char*)client.getDeviceModelNoCopy();
         devVals.deviceBoard = (char*)client.getDeviceBoardNoCopy();
+        devVals.installType = (flags & FLAG_UPDATE) ? kInstallTypeUpdate : kInstallTypeErase;
 
         if(flags & FLAG_RESTORE_RAMDISK) {
             client.setRamdiskPath(ramdiskPath);
@@ -439,14 +440,19 @@ int main_r(int argc, const char * argv[]) {
         }
 
         versVals.basebandMode = kBasebandModeWithoutBaseband;
-        if(!(flags & FLAG_SET_NONCE)) {
+        if(!(flags & FLAG_SET_NONCE) && !client.is32bit()) {
             info("Checking if SEP is being signed...\n");
-            if (!client.is32bit() &&
-                !(isManifestSignedForDevice(client.getSepManifestPath().c_str(), &devVals, &versVals, nullptr))) {
-                reterror("SEP firmware is NOT being signed!\n");
-            } else {
-                info("SEP is being signed!\n");
+            devVals.installType = (((flags & FLAG_LATEST_SEP) && (flags & FLAG_CUSTOM_LATEST_OTA)) ||
+                                   (flags & FLAG_UPDATE)) ? kInstallTypeUpdate : kInstallTypeErase;
+            const int sepSigningStatus = isManifestSignedForDevice(client.getSepManifestPath().c_str(),
+                                                                   &devVals, &versVals, nullptr);
+            if (sepSigningStatus < 0) {
+                reterror("Failed to verify SEP signing status!\n");
             }
+            if (sepSigningStatus == 0) {
+                reterror("SEP firmware is NOT being signed!\n");
+            }
+            info("SEP is being signed!\n");
         }
         if (flags & FLAG_NO_BASEBAND){
             info("\nWARNING: user specified is not to flash a baseband. This can make the restore fail if the device needs a baseband!\n");
@@ -483,12 +489,17 @@ int main_r(int argc, const char * argv[]) {
             }
             if(!(flags & FLAG_SET_NONCE) && !(flags & FLAG_NO_BASEBAND)) {
                 info("Checking if Baseband is being signed...\n");
-                if (!(isManifestSignedForDevice(client.getBasebandManifestPath().c_str(), &devVals, &versVals,
-                                                nullptr))) {
-                    reterror("Baseband firmware is NOT being signed!\n");
-                } else {
-                    info("Baseband is being signed!\n");
+                devVals.installType = (((flags & FLAG_LATEST_BASEBAND) && (flags & FLAG_CUSTOM_LATEST_OTA)) ||
+                                       (flags & FLAG_UPDATE)) ? kInstallTypeUpdate : kInstallTypeErase;
+                const int basebandSigningStatus = isManifestSignedForDevice(client.getBasebandManifestPath().c_str(),
+                                                                             &devVals, &versVals, nullptr);
+                if (basebandSigningStatus < 0) {
+                    reterror("Failed to verify Baseband signing status!\n");
                 }
+                if (basebandSigningStatus == 0) {
+                    reterror("Baseband firmware is NOT being signed!\n");
+                }
+                info("Baseband is being signed!\n");
             }
         }
         if(!client.is32bit() && !(flags & FLAG_SET_NONCE)) {

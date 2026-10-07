@@ -1196,13 +1196,14 @@ void futurerestore::doRestore(const char *ipsw) {
     if (_client->image4supported && !_setNonce) {
         if (!(client->sepBuildIdentity = getBuildidentityWithBoardconfig(_sepbuildmanifest,
                                                                          client->device->hardware_model,
-                                                                         _isUpdateInstall))) {
+                                                                         sepManifestIsUpdateInstall()))) {
             retassure(_isPwnDfu, "ERROR: Unable to find any build identities for SEP\n");
             warning("can't find buildidentity for SEP with InstallType=%s. However pwnDFU was requested, so trying fallback to %s",
-                    (_isUpdateInstall ? "UPDATE" : "ERASE"), (!_isUpdateInstall ? "UPDATE" : "ERASE"));
+                    (sepManifestIsUpdateInstall() ? "UPDATE" : "ERASE"),
+                    (!sepManifestIsUpdateInstall() ? "UPDATE" : "ERASE"));
             retassure((client->sepBuildIdentity = getBuildidentityWithBoardconfig(_sepbuildmanifest,
                                                                                   client->device->hardware_model,
-                                                                                  !_isUpdateInstall)),
+                                                                                  !sepManifestIsUpdateInstall())),
                       "ERROR: Unable to find any build identities for SEP\n");
         }
     }
@@ -1325,13 +1326,14 @@ void futurerestore::doRestore(const char *ipsw) {
     if (_basebandbuildmanifest) {
         if (!(client->basebandBuildIdentity = getBuildidentityWithBoardconfig(_basebandbuildmanifest,
                                                                               client->device->hardware_model,
-                                                                              _isUpdateInstall))) {
+                                                                              basebandManifestIsUpdateInstall()))) {
             retassure(client->basebandBuildIdentity = getBuildidentityWithBoardconfig(_basebandbuildmanifest,
                                                                                       client->device->hardware_model,
-                                                                                      !_isUpdateInstall),
+                                                                                      !basebandManifestIsUpdateInstall()),
                       "ERROR: Unable to find any build identities for Baseband\n");
             info("[WARNING] Unable to find Baseband buildidentities for restore type %s, using fallback %s\n",
-                 (_isUpdateInstall) ? "Update" : "Erase", (!_isUpdateInstall) ? "Update" : "Erase");
+                 basebandManifestIsUpdateInstall() ? "Update" : "Erase",
+                 !basebandManifestIsUpdateInstall() ? "Update" : "Erase");
         }
 
         client->bbfwtmp = (char *)this->_basebandPath.c_str();
@@ -2053,15 +2055,15 @@ void inline futurerestore::test() const {
 
 void futurerestore::downloadLatestRose() {
     char *manifeststr = getLatestManifest();
-    char *roseStr = (elemExists("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), 0) ? getPathOfElementInManifest(
-            "Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+    char *roseStr = (elemExists("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) ? getPathOfElementInManifest(
+            "Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     char otaString[1024]{};
     if (roseStr) {
         if(_useCustomLatestOTA) {
             snprintf(otaString, 1024, "%s%s", "AssetData/boot/", roseStr);
             roseStr = reinterpret_cast<char *>(&otaString);
         }
-        auto *digestString = getDigestOfElementInManifest("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(roseTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
         if(hash && digestString && !memcmp(digestString, hash, ((_client->device->chip_id < 0x8010) ? 20 : 48))) {
             info("Using cached Rose\n");
@@ -2078,8 +2080,8 @@ void futurerestore::downloadLatestRose() {
 
 void futurerestore::downloadLatestSE() {
     char *manifeststr = getLatestManifest();
-    char *seStr = (elemExists("SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), 0) ? getPathOfElementInManifest(
-            "SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+    char *seStr = (elemExists("SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) ? getPathOfElementInManifest(
+            "SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     char otaString[1024]{};
     if (seStr) {
         if(_useCustomLatestOTA) {
@@ -2096,23 +2098,23 @@ void futurerestore::downloadLatestSE() {
 
 void futurerestore::downloadLatestSavage() {
     char *manifeststr = getLatestManifest();
-    char *savageB0ProdStr = (elemExists("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+    char *savageB0ProdStr = (elemExists("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                              ? getPathOfElementInManifest("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(),
-                                                          0) : nullptr);
-    char *savageB0DevStr = (elemExists("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0)
-                            ? getPathOfElementInManifest("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                          latestManifestIsUpdateInstall()) : nullptr);
+    char *savageB0DevStr = (elemExists("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
+                            ? getPathOfElementInManifest("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                             : nullptr);
-    char *savageB2ProdStr = (elemExists("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *savageB2ProdStr = (elemExists("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                              ? getPathOfElementInManifest("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(),
-                                                          _useCustomLatestOTA) : nullptr);
-    char *savageB2DevStr = (elemExists("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0)
-                            ? getPathOfElementInManifest("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                          latestManifestIsUpdateInstall()) : nullptr);
+    char *savageB2DevStr = (elemExists("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
+                            ? getPathOfElementInManifest("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                             : nullptr);
-    char *savageBAProdStr = (elemExists("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *savageBAProdStr = (elemExists("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                              ? getPathOfElementInManifest("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(),
-                                                          _useCustomLatestOTA) : nullptr);
-    char *savageBADevStr = (elemExists("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0)
-                            ? getPathOfElementInManifest("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                          latestManifestIsUpdateInstall()) : nullptr);
+    char *savageBADevStr = (elemExists("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
+                            ? getPathOfElementInManifest("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                             : nullptr);
     std::array<std::string, 6> savagePaths{};
 
@@ -2124,7 +2126,7 @@ void futurerestore::downloadLatestSavage() {
             savageB0ProdStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[0] = futurerestoreTempPath + "/savageB0PP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[0], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,B0-Prod-Patch.\n");
@@ -2143,7 +2145,7 @@ void futurerestore::downloadLatestSavage() {
             savageB0DevStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[1] = futurerestoreTempPath + "//savageB0DP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[1], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,B0-Dev-Patch.\n");
@@ -2162,7 +2164,7 @@ void futurerestore::downloadLatestSavage() {
             savageB2ProdStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[2] = futurerestoreTempPath + "//savageB2PP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[2], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,B2-Prod-Patch.\n");
@@ -2181,7 +2183,7 @@ void futurerestore::downloadLatestSavage() {
             savageB2DevStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[3] = futurerestoreTempPath + "//savageB2DP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[3], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,B2-Dev-Patch.\n");
@@ -2200,7 +2202,7 @@ void futurerestore::downloadLatestSavage() {
             savageBAProdStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[4] = futurerestoreTempPath + "//savageBAPP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[4], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,BA-Prod-Patch.\n");
@@ -2219,7 +2221,7 @@ void futurerestore::downloadLatestSavage() {
             savageBADevStr = reinterpret_cast<char *>(&otaString);
         }
         savagePaths[5] = futurerestoreTempPath + "//savageBADP.fw";
-        auto *digestString = getDigestOfElementInManifest("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(savagePaths[5], 1);
         if(hash && digestString && !memcmp(digestString, hash, 32)) {
             info("Using cached Savage,BA-Dev-Patch.\n");
@@ -2243,11 +2245,11 @@ void futurerestore::downloadLatestSavage() {
 
 void futurerestore::downloadLatestVeridian() {
     char *manifeststr = getLatestManifest();
-    char *veridianDGMStr = (elemExists("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), 0)
-                            ? getPathOfElementInManifest("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+    char *veridianDGMStr = (elemExists("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
+                            ? getPathOfElementInManifest("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                             : nullptr);
-    char *veridianFWMStr = (elemExists("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), 0)
-                            ? getPathOfElementInManifest("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+    char *veridianFWMStr = (elemExists("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
+                            ? getPathOfElementInManifest("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                             : nullptr);
     char otaString[1024]{};
     if (veridianDGMStr) {
@@ -2255,7 +2257,7 @@ void futurerestore::downloadLatestVeridian() {
             snprintf(otaString, 1024, "%s%s", "AssetData/boot/", veridianDGMStr);
             veridianDGMStr = reinterpret_cast<char *>(&otaString);
         }
-        auto *digestString = getDigestOfElementInManifest("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto *digestString = getDigestOfElementInManifest("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         unsigned char *hash = getSHA(veridianDGMTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
         if(hash && digestString && !memcmp(digestString, hash, ((_client->device->chip_id < 0x8010) ? 20 : 48))) {
             info("Using cached BMU,DigestMap(Veridian).\n");
@@ -2273,7 +2275,7 @@ void futurerestore::downloadLatestVeridian() {
             snprintf(otaString, 1024, "%s%s", "AssetData/boot/", veridianFWMStr);
             veridianFWMStr = reinterpret_cast<char *>(&otaString);
         }
-        auto digestString = getDigestOfElementInManifest("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), 0);
+        auto digestString = getDigestOfElementInManifest("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
         auto hash = getSHA(veridianFWMTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
         if(hash && digestString && !memcmp(digestString, hash, ((_client->device->chip_id < 0x8010) ? 20 : 48))) {
             info("Using cached BMU,FirmwareMap(Veridian).\n");
@@ -2291,8 +2293,8 @@ void futurerestore::downloadLatestVeridian() {
 
 void futurerestore::downloadLatestTimer() {
     char *manifeststr = getLatestManifest();
-    char *timerStr = (elemExists("Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), 0) ? getPathOfElementInManifest(
-            "Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+    char *timerStr = (elemExists("Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) ? getPathOfElementInManifest(
+            "Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     char otaString[1024]{};
     if (timerStr) {
         if(_useCustomLatestOTA) {
@@ -2308,8 +2310,8 @@ void futurerestore::downloadLatestTimer() {
 
 void futurerestore::downloadLatestBaobab() {
     char *manifeststr = getLatestManifest();
-    char *baobabStr = (elemExists("Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), 0) ? getPathOfElementInManifest(
-            "Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+    char *baobabStr = (elemExists("Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) ? getPathOfElementInManifest(
+            "Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     char otaString[1024]{};
     if (baobabStr) {
         if(_useCustomLatestOTA) {
@@ -2325,54 +2327,54 @@ void futurerestore::downloadLatestBaobab() {
 
 void futurerestore::downloadLatestYonkers() {
     char *manifeststr = getLatestManifest();
-    char *yonkers0Str = (elemExists("Yonkers,SysTopPatch0", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+    char *yonkers0Str = (elemExists("Yonkers,SysTopPatch0", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                              ? getPathOfElementInManifest("Yonkers,SysTopPatch0", manifeststr, getDeviceBoardNoCopy(),
-                                                          0) : nullptr);
-    char *yonkers1Str = (elemExists("Yonkers,SysTopPatch1", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                          latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers1Str = (elemExists("Yonkers,SysTopPatch1", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch1", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers2Str = (elemExists("Yonkers,SysTopPatch2", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers2Str = (elemExists("Yonkers,SysTopPatch2", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch2", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers3Str = (elemExists("Yonkers,SysTopPatch3", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers3Str = (elemExists("Yonkers,SysTopPatch3", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch3", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers4Str = (elemExists("Yonkers,SysTopPatch4", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers4Str = (elemExists("Yonkers,SysTopPatch4", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch4", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers5Str = (elemExists("Yonkers,SysTopPatch5", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers5Str = (elemExists("Yonkers,SysTopPatch5", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch5", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers6Str = (elemExists("Yonkers,SysTopPatch6", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers6Str = (elemExists("Yonkers,SysTopPatch6", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch6", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers7Str = (elemExists("Yonkers,SysTopPatch7", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers7Str = (elemExists("Yonkers,SysTopPatch7", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch7", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers8Str = (elemExists("Yonkers,SysTopPatch8", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers8Str = (elemExists("Yonkers,SysTopPatch8", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch8", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkers9Str = (elemExists("Yonkers,SysTopPatch9", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkers9Str = (elemExists("Yonkers,SysTopPatch9", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatch9", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersAStr = (elemExists("Yonkers,SysTopPatchA", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersAStr = (elemExists("Yonkers,SysTopPatchA", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchA", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersBStr = (elemExists("Yonkers,SysTopPatchB", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersBStr = (elemExists("Yonkers,SysTopPatchB", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchB", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersCStr = (elemExists("Yonkers,SysTopPatchC", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersCStr = (elemExists("Yonkers,SysTopPatchC", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchC", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersDStr = (elemExists("Yonkers,SysTopPatchD", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersDStr = (elemExists("Yonkers,SysTopPatchD", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchD", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersEStr = (elemExists("Yonkers,SysTopPatchE", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersEStr = (elemExists("Yonkers,SysTopPatchE", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchE", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
-    char *yonkersFStr = (elemExists("Yonkers,SysTopPatchF", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA)
+                                                      latestManifestIsUpdateInstall()) : nullptr);
+    char *yonkersFStr = (elemExists("Yonkers,SysTopPatchF", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                          ? getPathOfElementInManifest("Yonkers,SysTopPatchF", manifeststr, getDeviceBoardNoCopy(),
-                                                      0) : nullptr);
+                                                      latestManifestIsUpdateInstall()) : nullptr);
     std::array<std::string, 16> yonkersPaths{};
 
 
@@ -2575,48 +2577,48 @@ void futurerestore::downloadLatestYonkers() {
 
 void futurerestore::downloadLatestCryptex1() {
     char *manifeststr = getLatestManifest();
-    char *cryptex1SysOSStr = (elemExists("Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1SysOSStr = (elemExists("Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                               ? getPathOfElementInManifest(
-                    "Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1SysOSDGSTStr = getDigestOfElementInManifest("Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(),
-                                                              _useCustomLatestOTA);
+                                                              latestManifestIsUpdateInstall());
     info("Checking for cached Cryptex1...\n");
     auto *cryptex1SysOSHash = getSHA(cryptex1SysOSTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
-    char *cryptex1SysVOLStr = (elemExists("Cryptex1,SystemVolume", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1SysVOLStr = (elemExists("Cryptex1,SystemVolume", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                                ? getPathOfElementInManifest(
-                    "Cryptex1,SystemVolume", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,SystemVolume", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1SysVOLDGSTStr = getDigestOfElementInManifest("Cryptex1,SystemVolume", manifeststr,
-                                                               getDeviceBoardNoCopy(), _useCustomLatestOTA);
+                                                               getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     auto *cryptex1SysVOLHash = getSHA(cryptex1SysVOLTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
-    char *cryptex1SysTCStr = (elemExists("Cryptex1,SystemTrustCache", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1SysTCStr = (elemExists("Cryptex1,SystemTrustCache", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                               ? getPathOfElementInManifest(
-                    "Cryptex1,SystemTrustCache", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,SystemTrustCache", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1SysTCDGSTStr = getDigestOfElementInManifest("Cryptex1,SystemTrustCache", manifeststr,
-                                                              getDeviceBoardNoCopy(), _useCustomLatestOTA);
+                                                              getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     auto *cryptex1SysTCHash = getSHA(cryptex1SysTCTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
-    char *cryptex1AppOSStr = (elemExists("Cryptex1,AppOS", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1AppOSStr = (elemExists("Cryptex1,AppOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                               ? getPathOfElementInManifest(
-                    "Cryptex1,AppOS", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,AppOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1AppOSDGSTStr = getDigestOfElementInManifest("Cryptex1,AppOS", manifeststr, getDeviceBoardNoCopy(),
-                                                              _useCustomLatestOTA);
+                                                              latestManifestIsUpdateInstall());
     auto *cryptex1AppOSHash = getSHA(cryptex1AppOSTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
-    char *cryptex1AppVOLStr = (elemExists("Cryptex1,AppVolume", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1AppVOLStr = (elemExists("Cryptex1,AppVolume", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                                ? getPathOfElementInManifest(
-                    "Cryptex1,AppVolume", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,AppVolume", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1AppVOLDGSTStr = getDigestOfElementInManifest("Cryptex1,AppVolume", manifeststr,
-                                                               getDeviceBoardNoCopy(), _useCustomLatestOTA);
+                                                               getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     auto *cryptex1AppVOLHash = getSHA(cryptex1AppVOLTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
 
-    char *cryptex1AppTCStr = (elemExists("Cryptex1,AppTrustCache", manifeststr, getDeviceBoardNoCopy(), 0)
+    char *cryptex1AppTCStr = (elemExists("Cryptex1,AppTrustCache", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())
                               ? getPathOfElementInManifest(
-                    "Cryptex1,AppTrustCache", manifeststr, getDeviceBoardNoCopy(), _useCustomLatestOTA) : nullptr);
+                    "Cryptex1,AppTrustCache", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) : nullptr);
     auto *cryptex1AppTCDGSTStr = getDigestOfElementInManifest("Cryptex1,AppTrustCache", manifeststr,
-                                                              getDeviceBoardNoCopy(), _useCustomLatestOTA);
+                                                              getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     auto *cryptex1AppTCHash = getSHA(cryptex1AppTCTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
 
     char otaString[1024]{};
@@ -2721,26 +2723,26 @@ void futurerestore::downloadLatestCryptex1() {
 void futurerestore::downloadLatestFirmwareComponents() {
     info("Downloading the latest firmware components...\n");
     char *manifeststr = getLatestManifest();
-    if (elemExists("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("Rap,RTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestRose();
-    if (elemExists("SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("SE,UpdatePayload", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestSE();
-    if (elemExists("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0) &&
-        elemExists("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0) &&
-        elemExists("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0) &&
-        elemExists("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0) &&
-        elemExists("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), 0) &&
-        elemExists("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), 0)) {
+    if (elemExists("Savage,B0-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) &&
+        elemExists("Savage,B0-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) &&
+        elemExists("Savage,B2-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) &&
+        elemExists("Savage,B2-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) &&
+        elemExists("Savage,BA-Prod-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) &&
+        elemExists("Savage,BA-Dev-Patch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())) {
         downloadLatestSavage();
     }
-    if (elemExists("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), 0) ||
-        elemExists("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("BMU,DigestMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()) ||
+        elemExists("BMU,FirmwareMap", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestVeridian();
-    if (elemExists("Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("Timer,RestoreRTKitOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestTimer();
-    if (elemExists("Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("Baobab,TCON", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestBaobab();
-    if (elemExists("Yonkers,PatchEpoch", manifeststr, getDeviceBoardNoCopy(), 0))
+    if (elemExists("Yonkers,PatchEpoch", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall()))
         downloadLatestYonkers();
     const char *disableLatest = std::getenv("IDR_DISABLE_LATEST_CRYPTEX");
     if(!disableLatest) {
@@ -2749,7 +2751,7 @@ void futurerestore::downloadLatestFirmwareComponents() {
       plist_t bm = nullptr;
       if(!ipsw_extract_build_manifest(ipsw_tmp, &bm, &unused) && bm) {
         build_manifest_get_version_information(bm, _client);
-        if((_client->version && strlen(_client->version) > 0 && (strncmp(_client->version, "16.", 3) >= 0)) && elemExists("Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), 0)) {
+        if((_client->version && strlen(_client->version) > 0 && (strncmp(_client->version, "16.", 3) >= 0)) && elemExists("Cryptex1,SystemOS", manifeststr, getDeviceBoardNoCopy(), latestManifestIsUpdateInstall())) {
           downloadLatestCryptex1();
         }
       }
@@ -2761,8 +2763,8 @@ void futurerestore::downloadLatestFirmwareComponents() {
 void futurerestore::downloadLatestBaseband() {
     auto manifeststr = std::string(getLatestManifest());
     saveStringToFile(manifeststr, basebandManifestTempPath);
-    auto pathStr = getPathOfElementInManifest("BasebandFirmware", manifeststr.c_str(), getDeviceBoardNoCopy(), _useCustomLatestOTA);
-    auto *bbcfgDigestString = getBBCFGDigestInManifest(manifeststr.c_str(), getDeviceBoardNoCopy(), 0);
+    auto pathStr = getPathOfElementInManifest("BasebandFirmware", manifeststr.c_str(), getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
+    auto *bbcfgDigestString = getBBCFGDigestInManifest(manifeststr.c_str(), getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     size_t basebandSize = 0;
     char *basebandData = nullptr;
     basebandData = readBaseband(basebandTempPath, basebandData, &basebandSize);
@@ -2791,6 +2793,7 @@ void futurerestore::downloadLatestBaseband() {
     }
     setBasebandPath(basebandTempPath);
     setBasebandManifestPath(basebandManifestTempPath);
+    _basebandManifestUsesLatestOTA = _useCustomLatestOTA;
     loadBaseband(this->_basebandPath);
     loadBasebandManifest(this->_basebandManifestPath);
 }
@@ -2798,8 +2801,8 @@ void futurerestore::downloadLatestBaseband() {
 void futurerestore::downloadLatestSep() {
     auto manifestString = std::string(getLatestManifest());
     saveStringToFile(manifestString, sepManifestTempPath);
-    auto pathString = getPathOfElementInManifest("SEP", manifestString.c_str(), getDeviceBoardNoCopy(), _useCustomLatestOTA);
-    auto *digestString = getDigestOfElementInManifest("SEP",manifestString.c_str(), getDeviceBoardNoCopy(), _useCustomLatestOTA);
+    auto pathString = getPathOfElementInManifest("SEP", manifestString.c_str(), getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
+    auto *digestString = getDigestOfElementInManifest("SEP",manifestString.c_str(), getDeviceBoardNoCopy(), latestManifestIsUpdateInstall());
     auto *hash = getSHA(sepTempPath, ((_client->device->chip_id < 0x8010) ? 3 : 0));
     if(hash && digestString && !memcmp(digestString, hash, ((_client->device->chip_id < 0x8010) ? 20 : 48))) {
         info("Using cached SEP.\n");
@@ -2818,6 +2821,7 @@ void futurerestore::downloadLatestSep() {
     }
     setSepPath(sepTempPath);
     setSepManifestPath(sepManifestTempPath);
+    _sepManifestUsesLatestOTA = _useCustomLatestOTA;
     loadSep(this->_sepPath);
     loadSepManifest(this->_sepManifestPath);
 }

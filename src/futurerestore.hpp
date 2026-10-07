@@ -92,6 +92,8 @@ class futurerestore {
     std::string _sepManifestPath;
     std::string _basebandPath;
     std::string _basebandManifestPath;
+    bool _sepManifestUsesLatestOTA = false;
+    bool _basebandManifestUsesLatestOTA = false;
 
 
 // TODO: implement windows CI and enable update check
@@ -112,6 +114,9 @@ class futurerestore {
 
     bool _enterPwnRecoveryRequested = false;
     bool _rerestoreiOS9 = false;
+    bool latestManifestIsUpdateInstall() const { return _useCustomLatestOTA || _isUpdateInstall; }
+    bool sepManifestIsUpdateInstall() const { return _sepManifestUsesLatestOTA || _isUpdateInstall; }
+    bool basebandManifestIsUpdateInstall() const { return _basebandManifestUsesLatestOTA || _isUpdateInstall; }
     //methods
     void enterPwnRecovery(plist_t build_identity, std::string bootargs);
     void patchKernel(plist_t build_identity, std::string custom_seed = "");
@@ -181,11 +186,11 @@ public:
     void setCustomLatest(std::string version){_customLatest = std::move(version); _useCustomLatest = true;}
     void setCustomLatestBuildID(std::string version, bool beta, bool ota){_customLatestBuildID = std::move(version); _useCustomLatest = false; _useCustomLatestBuildID = true; _useCustomLatestBeta = beta; _useCustomLatestOTA = ota;}
     void setSepPath(std::string sepPath) {_sepPath = std::move(sepPath);}
-    void setSepManifestPath(std::string sepManifestPath) {_sepManifestPath = std::move(sepManifestPath);}
+    void setSepManifestPath(std::string sepManifestPath) {_sepManifestPath = std::move(sepManifestPath); _sepManifestUsesLatestOTA = false;}
     void setRamdiskPath(std::string ramdiskPath) {_ramdiskPath = std::move(ramdiskPath);}
     void setKernelPath(std::string kernelPath) {_kernelPath = std::move(kernelPath);}
     void setBasebandPath(std::string basebandPath) {_basebandPath = std::move(basebandPath);}
-    void setBasebandManifestPath(std::string basebandManifestPath) {_basebandManifestPath = std::move(basebandManifestPath);}
+    void setBasebandManifestPath(std::string basebandManifestPath) {_basebandManifestPath = std::move(basebandManifestPath); _basebandManifestUsesLatestOTA = false;}
     void setIPSWPath(const char *ipsw_path){_ipsw_path = ipsw_path;};
     void setNonce(const char *custom_nonce){_custom_nonce = custom_nonce;};
     void setBootArgs(const char *boot_args){_boot_args = boot_args;};
